@@ -1,0 +1,336 @@
+package org.springframework.samples.petclinic.nonfunctional;
+
+import org.springframework.samples.petclinic.model.*;
+import java.io.*;
+import java.time.LocalDate;
+import java.lang.management.*;
+import java.net.*;
+import java.util.*;
+
+public class NonFucntionalTest {
+	private static int ownerID = 1;
+	final static String baseUrl = "http://localhost:8080/";
+	static int[] petIds = new int[1000];
+	private static String randomname() {
+
+		String alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+		StringBuilder sb = new StringBuilder();
+
+		Random random = new Random();
+
+		int length = 5;
+
+		for(int i = 0; i < length; i++) {
+			int index = random.nextInt(alphabet.length());
+			char randomChar = alphabet.charAt(index);
+			sb.append(randomChar);
+		}
+
+		String randomString = sb.toString();
+		return randomString;
+
+	}
+	private static Owner createOwner() {
+		Owner owner = new Owner();
+		owner.setTelephone("1234567890");
+		owner.setLastName(randomname());
+		owner.setFirstName(randomname());
+		owner.setCity("Montreal");
+		owner.setAddress(randomname());
+		return owner;
+	}
+	public static Pet createPet() {
+		Pet pet = new Pet();
+		pet.setName(randomname());
+		pet.setBirthDate(LocalDate.parse("2020-06-01"));
+		PetType type = new PetType();
+		type.setName("cat");
+		pet.setType(type);
+		return pet;
+	}
+	public static void main(String[] args) throws IOException, InterruptedException {
+		boolean check= false;
+		try {
+			URL url = new URL(baseUrl);
+			HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+			connection.connect();
+			connection.disconnect();
+			check=true;
+		}
+		catch (IOException e) {
+			check=false;
+		}
+		if (check==true) {
+			testCreateOwner();
+			testUpdateOwner();
+			testCreatePet();
+			testUpdatePet();
+		}
+		else {
+			System.out.println("Your System is not running");
+		}
+
+	}
+	public static void testCreateOwner() throws IOException {
+			FileWriter csvWriter = new FileWriter("createOwner1000.csv");
+			OperatingSystemMXBean operatingSystemMXBean = ManagementFactory.getOperatingSystemMXBean();
+			System.out.println("Size: " +1000);
+			long t1;
+			long t2 = 0;
+			double totalCpu = 0.0;
+			double totalMemory = 0.0;
+			double averageCpu ;
+			double averageMemory;
+			double averageTime ;
+
+			long startTime = System.currentTimeMillis();
+			for (int i = 0; i < 1000; i++) {
+				long t1_start_time = System.currentTimeMillis();
+				double memory ;
+				double cpu ;
+
+				Owner owner = createOwner();
+				HashMap<String, String> params = new HashMap<>();
+				params.put("firstName", owner.getFirstName());
+				params.put("lastName", owner.getLastName());
+				params.put("address", owner.getAddress());
+				params.put("city", owner.getCity());
+				params.put("telephone", owner.getTelephone());
+				StringBuilder postData = new StringBuilder();
+
+				for (Map.Entry<String, String> item : params.entrySet()) {
+					if (postData.length() != 0)
+						postData.append('&');
+					postData.append(URLEncoder.encode(item.getKey(), "UTF-8"));
+					postData.append('=');
+					postData.append(URLEncoder.encode(String.valueOf(item.getValue()), "UTF-8"));
+				}
+				byte[] postDataBytes = postData.toString().getBytes("UTF-8");
+				String path = "owners/";
+					path += "new";
+				HelperMethods.sendRequest("POST", baseUrl, path, postDataBytes);
+				HelperMethods.sendRequest("GET",baseUrl,"owners/"+i,postDataBytes);
+
+				petIds[i] = i;
+				long t1_end_time = System.currentTimeMillis();
+				t1 = t1_end_time - t1_start_time;
+				t2 += t1;
+				cpu = ((com.sun.management.OperatingSystemMXBean) operatingSystemMXBean).getProcessCpuLoad();
+				memory = (double) Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
+				totalCpu +=  cpu;
+				totalMemory +=  memory;
+				List<String> result = Arrays.asList(String.valueOf(t1), String.valueOf(cpu * 100.0),
+					String.valueOf(memory));
+				csvWriter.append(String.join(",", result));
+				csvWriter.append("\n");
+			}
+			csvWriter.flush();
+			csvWriter.close();
+			long endTime = System.currentTimeMillis();
+			long totalTime = endTime - startTime;
+			averageCpu = totalCpu / (double)1000 * 100.0;
+			averageMemory = totalMemory / (double) 1000;
+			averageTime = (double) t2 / 1000;
+		    System.out.println("Average time: " + averageTime + " ms Average CPU: " + averageCpu
+				+ " % Average memory usage: " + averageMemory + " bytes");
+		    System.out.println("Total Time: " + totalTime+" ms");
+			ownerID++;
+
+	}
+
+	public static void testUpdateOwner() throws  IOException {
+			FileWriter csvWriter = new FileWriter("updateOwner1000.csv");
+			OperatingSystemMXBean operatingSystemMXBean =  ManagementFactory.getOperatingSystemMXBean();
+			System.out.println("Size: " + 1000);
+			long t1 ;
+			long t2 = 0;
+			double totalCpu = 0.0;
+			double totalMemory = 0.0;
+			double averageCpu ;
+			double averageMemory ;
+			double averageTime ;
+
+			long startTime = System.currentTimeMillis();
+			for (int i = 0; i < 1000; i++) {
+				long t1_start_time = System.currentTimeMillis();
+				double memory ;
+				double cpu;
+				int currId = petIds[i];
+
+				Owner owner = createOwner();
+				HashMap<String, String> params = new HashMap<>();
+				params.put("firstName", owner.getFirstName());
+				params.put("lastName", owner.getLastName());
+				params.put("address", owner.getAddress());
+				params.put("city", owner.getCity());
+				params.put("telephone", owner.getTelephone());
+				StringBuilder postData = new StringBuilder();
+
+				for (Map.Entry<String, String> item : params.entrySet()) {
+					if (postData.length() != 0)
+						postData.append('&');
+					postData.append(URLEncoder.encode(item.getKey(), "UTF-8"));
+					postData.append('=');
+					postData.append(URLEncoder.encode(String.valueOf(item.getValue()), "UTF-8"));
+				}
+				byte[] postDataBytes = postData.toString().getBytes("UTF-8");
+				String path = "owners/";
+					path = path + currId + "/edit";
+
+				HelperMethods.sendRequest("POST", baseUrl, path, postDataBytes);
+				HelperMethods.sendRequest("GET",baseUrl,"owners/"+currId,postDataBytes);
+
+				long t1_end_time = System.currentTimeMillis();
+				t1 = t1_end_time - t1_start_time;
+				t2 += t1;
+				cpu = ((com.sun.management.OperatingSystemMXBean)operatingSystemMXBean).getProcessCpuLoad();
+				memory = (double) Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
+				totalCpu +=  cpu;
+				totalMemory += memory;
+				List<String> result = Arrays.asList(String.valueOf(t1), String.valueOf(cpu * 100.0),
+					String.valueOf(memory));
+				csvWriter.append(String.join(",", result));
+				csvWriter.append("\n");
+			}
+			csvWriter.flush();
+			csvWriter.close();
+			long endTime = System.currentTimeMillis();
+			long totalTime = endTime - startTime;
+			averageCpu = totalCpu / (double) 1000 * 100.0;
+			averageMemory = totalMemory / (double) 1000;
+			averageTime = (double) t2 / 1000;
+		    System.out.println("Average time: " + averageTime + " ms Average CPU: "
+				+ averageCpu + " % Average memory usage: " + averageMemory + " bytes");
+		    System.out.println("Total Time: " + totalTime+" ms");
+			ownerID++;
+
+	}
+	public static void testCreatePet() throws IOException  {
+		FileWriter csvWriter = new FileWriter("createpet1000.csv");
+
+		OperatingSystemMXBean operatingSystemMXBean =  ManagementFactory.getOperatingSystemMXBean();
+		System.out.println("Size: " + 1000);
+		long t1;
+		long t2 = 0;
+		double totalCpu = 0.0;
+		double totalMemory = 0.0;
+		double averageCpu ;
+		double averageMemory ;
+		double averageTime;
+
+		long startTime = System.currentTimeMillis();
+		for (int i = 0; i < 1000; i++) {
+			long t1_start_time = System.currentTimeMillis();
+			double memory = 0;
+			double cpu = 0;
+			Pet pet =createPet();
+			HashMap<String, String> params = new HashMap<>();
+			params.put("name", pet.getName());
+			params.put("birthDate", pet.getBirthDate().toString());
+			params.put("type", pet.getType().getName());
+			StringBuilder postData = new StringBuilder();
+
+			for (Map.Entry<String, String> item : params.entrySet()) {
+				if (postData.length() != 0)
+					postData.append('&');
+				postData.append(URLEncoder.encode(item.getKey(), "UTF-8"));
+				postData.append('=');
+				postData.append(URLEncoder.encode(String.valueOf(item.getValue()), "UTF-8"));
+			}
+			byte[] postDataBytes = postData.toString().getBytes("UTF-8");
+			String path = "owners/" + ownerID;
+				path += "/pets/new";
+			HelperMethods.sendRequest("POST", baseUrl, path, postDataBytes);
+			HelperMethods.sendRequest("GET", baseUrl, "owners/" + ownerID, postDataBytes);
+
+			petIds[i] = i;
+			long t1_end_time = System.currentTimeMillis();
+			t1 = t1_end_time - t1_start_time;
+			t2 += t1;
+			cpu = ((com.sun.management.OperatingSystemMXBean) operatingSystemMXBean).getProcessCpuLoad();
+			memory = (double) Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
+			totalCpu +=  cpu;
+			totalMemory +=  memory;
+			List<String> result = Arrays.asList(String.valueOf(t1), String.valueOf(cpu * 100.0),
+				String.valueOf(memory));
+			csvWriter.append(String.join(",", result));
+			csvWriter.append("\n");
+		}
+		csvWriter.flush();
+		csvWriter.close();
+		long endTime = System.currentTimeMillis();
+		long totalTime = endTime - startTime;
+		averageCpu = totalCpu / (double) 1000 * 100.0;
+		averageMemory = totalMemory / (double) 1000;
+		averageTime = (double) t2 / 1000;
+		System.out.println("Average time: " + averageTime + " ms Average CPU: " + averageCpu
+			+ " % Average memory usage: " + averageMemory + " bytes");
+		System.out.println("Total Time: " + totalTime+" ms");
+		ownerID++;
+
+	}
+
+	public static void testUpdatePet() throws  IOException {
+		FileWriter csvWriter = new FileWriter("updatepet1000.csv");
+		OperatingSystemMXBean operatingSystemMXBean =  ManagementFactory.getOperatingSystemMXBean();
+		System.out.println("Size: " + 1000);
+		long t1 ;
+		long t2 = 0;
+		double totalCpu = 0.0;
+		double totalMemory = 0.0;
+		double averageCpu ;
+		double averageMemory ;
+		double averageTime ;
+
+		long startTime = System.currentTimeMillis();
+		for (int i = 0; i < 1000; i++) {
+			long t1_start_time = System.currentTimeMillis();
+			double memory ;
+			double cpu ;
+			int currId = petIds[i];
+			Pet pet =createPet();
+			HashMap<String, String> params = new HashMap<>();
+			params.put("name", pet.getName());
+			params.put("birthDate", pet.getBirthDate().toString());
+			params.put("type", pet.getType().getName());
+			StringBuilder postData = new StringBuilder();
+
+			for (Map.Entry<String, String> item : params.entrySet()) {
+				if (postData.length() != 0)
+					postData.append('&');
+				postData.append(URLEncoder.encode(item.getKey(), "UTF-8"));
+				postData.append('=');
+				postData.append(URLEncoder.encode(String.valueOf(item.getValue()), "UTF-8"));
+			}
+			byte[] postDataBytes = postData.toString().getBytes("UTF-8");
+			String path = "owners/" + ownerID;
+				path = path + "/pets/" + currId + "/edit";
+			HelperMethods.sendRequest("POST", baseUrl, path, postDataBytes);
+			HelperMethods.sendRequest("GET", baseUrl, "owners/" + ownerID, postDataBytes);
+
+			long t1_end_time = System.currentTimeMillis();
+			t1 = t1_end_time - t1_start_time;
+			t2 += t1;
+			cpu =  ((com.sun.management.OperatingSystemMXBean) operatingSystemMXBean).getProcessCpuLoad();
+			memory = (double) Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
+			totalCpu += cpu;
+			totalMemory +=  memory;
+			List<String> result = Arrays.asList(String.valueOf(t1), String.valueOf(cpu * 100.0),
+				String.valueOf(memory));
+			csvWriter.append(String.join(",", result));
+			csvWriter.append("\n");
+		}
+		csvWriter.flush();
+		csvWriter.close();
+		long endTime = System.currentTimeMillis();
+		long totalTime = endTime - startTime;
+		averageCpu = totalCpu / (double) 1000 * 100.0;
+		averageMemory = totalMemory / (double) 1000;
+		averageTime = (double) t2 / 1000;
+		System.out.println("Average time: " + averageTime + " ms Average CPU: " + averageCpu
+			+ " % Average memory usage: " + averageMemory + " bytes");
+		System.out.println("Total Time: " + totalTime+" ms");
+		ownerID++;
+
+	}
+}
