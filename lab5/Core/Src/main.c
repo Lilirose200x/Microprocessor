@@ -49,14 +49,10 @@ DMA_HandleTypeDef hdma_dfsdm1_flt1;
 TIM_HandleTypeDef htim2;
 
 /* USER CODE BEGIN PV */
-#define AUDIO_REC	12036
-int32_t RecBuff[AUDIO_REC];
-uint32_t PlayBuff[AUDIO_REC];
-uint8_t pressed = 0;
-
-uint8_t DmaRecHalfBuffCplt = 0;
-uint8_t DmaRecBuffCplt = 0;
-
+#define LENGTH	12000
+int32_t record[LENGTH];
+uint32_t play[LENGTH];
+int recording = 0;
 
 /* USER CODE END PV */
 
@@ -370,43 +366,44 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_PIN){
-	if(GPIO_PIN == push_button_Pin){
-		if(pressed == 0){
-			HAL_DFSDM_FilterRegularStart_DMA(&hdfsdm1_filter1, RecBuff, AUDIO_REC);
+	//button pressed
+	if(GPIO_PIN == GPIO_PIN_13){
+		if(recording == 0){
+			HAL_DFSDM_FilterRegularStart_DMA(&hdfsdm1_filter1, record, LENGTH);	//Start regular conversion
 
-			pressed = 1;
+			recording = 1;
 		}else{
 
 			HAL_DAC_Stop_DMA(&hdac1, DAC_CHANNEL_1);
-			for(uint16_t i = 0; i < AUDIO_REC; i++){
-				PlayBuff[i] = 0;
-				RecBuff[i] = 0;
+			for(int i=0;i<LENGTH;i++){
+				play[i] = 0;
+				record[i] = 0;
 			}
-			pressed = 0;
-
+			recording = 0;
 		}
-
-
 	}
 }
 
+//at the half transfer and at the transfer complete
 void HAL_DFSDM_FilterRegConvHalfCpltCallback(DFSDM_Filter_HandleTypeDef *hdfsdm_filter){
-	DmaRecHalfBuffCplt = 1;
-	for(int i = 0; i < AUDIO_REC / 2; i++){
-		PlayBuff[i] = (RecBuff[i] >> 20);
-
+	for(int i=0;i<LENGTH/2;i++){
+		play[i] = record[i]>>8;
+		play[i]= play[i]+8388608;
+		play[i] = play[i]>>11;
 	}
 }
 
+//Regular conversion complete callback.
 void HAL_DFSDM_FilterRegConvCpltCallback(DFSDM_Filter_HandleTypeDef *hdfsdm_filter){
-	DmaRecBuffCplt = 1;
-	for(int i = AUDIO_REC / 2; i < AUDIO_REC; i++){
-		PlayBuff[i] = (RecBuff[i] >> 20);
+	for(int i = LENGTH/2;i<LENGTH;i++){
+		play[i] = record[i]>>8;
+		play[i]= play[i]+8388608;
+		play[i] = play[i]>>11;
+
 	}
-	HAL_DFSDM_FilterRegularStop_DMA(&hdfsdm1_filter1);
-	HAL_DAC_Start_DMA(&hdac1, DAC_CHANNEL_1, PlayBuff, AUDIO_REC, DAC_ALIGN_12B_R);
+	HAL_DFSDM_FilterRegularStop_DMA(&hdfsdm1_filter1);								//stop regular conversion in DMA mode
+	HAL_DAC_Start_DMA(&hdac1, DAC_CHANNEL_1, play, LENGTH, DAC_ALIGN_12B_R);
 }
 
 
